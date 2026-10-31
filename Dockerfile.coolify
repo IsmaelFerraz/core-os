@@ -1,0 +1,23 @@
+FROM node:22-bookworm-slim
+ENV NODE_ENV=production \
+    HOME=/home/node \
+    CORE_OS_HOST=0.0.0.0 \
+    CORE_OS_PORT=3000 \
+    CORE_OS_VAULT=/app/cerebro \
+    CORE_OS_DATA=/app/data \
+    CORE_OS_ENV=/dev/null
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      bash ca-certificates curl git python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
+COPY painel/package*.json /app/painel/
+RUN cd /app/painel && npm ci --omit=dev \
+    && npm install -g @anthropic-ai/claude-code @openai/codex
+COPY painel /app/painel
+COPY cerebro-demo /app/cerebro
+RUN mkdir -p /app/data /home/node/.claude /home/node/.codex /home/node/.config \
+    && chown -R node:node /app /home/node
+USER node
+WORKDIR /app/painel
+EXPOSE 3000
+CMD ["node","server.js"]
