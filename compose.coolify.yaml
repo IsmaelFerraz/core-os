@@ -48,7 +48,7 @@ services:
       - coreos-redis:/data
 
   evolution:
-    image: ${EVOLUTION_IMAGE:?Defina a imagem e versao da Evolution API}
+    image: ${EVOLUTION_IMAGE:-evoapicloud/evolution-api:v2.3.7}
     restart: unless-stopped
     depends_on:
       postgres:
