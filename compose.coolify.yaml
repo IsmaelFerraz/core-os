@@ -1,0 +1,105 @@
+# Deploy no Coolify: Git repository -> Docker Compose -> /compose.coolify.yaml
+# Senhas e chaves: configurar SOMENTE no Coolify. Nunca commitar em Git.
+services:
+  coreos:
+    build:
+      context: .
+      dockerfile: Dockerfile.coolify
+    restart: unless-stopped
+    environment:
+      CORE_OS_HOST: 0.0.0.0
+      CORE_OS_PORT: "3000"
+      CORE_OS_VAULT: /app/cerebro
+      CORE_OS_DATA: /app/data
+      CORE_OS_ENV: /dev/null
+      CORE_OS_PASSWORD: ${CORE_OS_PASSWORD:?Defina CORE_OS_PASSWORD no Coolify}
+      CORE_OS_HOOK_TOKEN: ${CORE_OS_HOOK_TOKEN:?Defina CORE_OS_HOOK_TOKEN no Coolify}
+    expose:
+      - "3000"
+    volumes:
+      - coreos-brain:/app/cerebro
+      - coreos-data:/app/data
+      - coreos-claude:/home/node/.claude
+      - coreos-codex:/home/node/.codex
+      - coreos-config:/home/node/.config
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: coreos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+      POSTGRES_DB: evolution
+    volumes:
+      - coreos-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coreos -d evolution"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server","--appendonly","yes"]
+    volumes:
+      - coreos-redis:/data
+
+  evolution:
+    image: ${EVOLUTION_IMAGE:?Defina a imagem e versao da Evolution API}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      SERVER_URL: ${EVOLUTION_PUBLIC_URL:?Defina EVOLUTION_PUBLIC_URL}
+      AUTHENTICATION_API_KEY: ${EVO_KEY:?Defina EVO_KEY}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://coreos:${POSTGRES_PASSWORD}@postgres:5432/evolution?schema=public
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379/1
+      CACHE_LOCAL_ENABLED: "false"
+      CONFIG_SESSION_PHONE_CLIENT: Core OS
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      LOG_LEVEL: ERROR,WARN
+    expose:
+      - "8080"
+    volumes:
+      - coreos-evolution:/evolution/instances
+
+  n8n:
+    image: ${N8N_IMAGE:-docker.n8n.io/n8nio/n8n:latest}
+    restart: unless-stopped
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Defina N8N_ENCRYPTION_KEY}
+      N8N_HOST: ${N8N_HOST:?Defina N8N_HOST}
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: ${N8N_PUBLIC_URL:?Defina N8N_PUBLIC_URL}
+      N8N_SECURE_COOKIE: "true"
+      GENERIC_TIMEZONE: America/Bahia
+      TZ: America/Bahia
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      CORE_OS_HOOK_TOKEN: ${CORE_OS_HOOK_TOKEN}
+      CORE_OS_PONTE: http://coreos:3000/api/ponte/whatsapp
+    expose:
+      - "5678"
+    volumes:
+      - coreos-n8n:/home/node/.n8n
+
+volumes:
+  coreos-brain:
+  coreos-data:
+  coreos-claude:
+  coreos-codex:
+  coreos-config:
+  coreos-postgres:
+  coreos-redis:
+  coreos-evolution:
+  coreos-n8n:
