@@ -14,6 +14,11 @@ services:
       CORE_OS_ENV: /dev/null
       CORE_OS_PASSWORD: ${CORE_OS_PASSWORD:?Defina CORE_OS_PASSWORD no Coolify}
       CORE_OS_HOOK_TOKEN: ${CORE_OS_HOOK_TOKEN:?Defina CORE_OS_HOOK_TOKEN no Coolify}
+      EVO_URL: http://evolution:8080
+      EVO_KEY: ${EVO_KEY:?Defina EVO_KEY no Coolify}
+      EVO_INSTANCE: cerebro
+      WHATS_WEBHOOK: http://n8n:5678/webhook/core-os-whatsapp
+      N8N_PUBLIC_URL: ${N8N_PUBLIC_URL:?Defina N8N_PUBLIC_URL}
     expose:
       - "3000"
     volumes:
